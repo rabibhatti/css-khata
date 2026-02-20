@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSS Khata/Bill - Classic Billing Management</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧾</text></svg>">
+    
+    <!-- External Library: html2canvas for downloading/sharing bills -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <style>
+        /* --- THEME & GLOBAL STYLES --- */
+        :root {
+            /* Light Theme (Default) */
+            --bg-primary: #f8f9fa;
+            --bg-secondary: #ffffff;
+            --bg-header: #0a192f;
+            --text-primary: #212529;
+            --text-secondary: #6c757d;
+            --text-on-dark: #e6f1ff;
+            --accent-primary: #0a192f; /* Navy Blue */
+            --accent-secondary: #007bff; /* A classic blue for links/highlights */
+            --border-color: #dee2e6;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --danger-color: #d9534f;
+            --success-color: #5cb85c;
+
+            --font-sans: 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+            --border-radius: 4px;
+            --transition-speed: 0.3s;
+        }
+
+        body.dark-theme {
+            /* Dark Theme */
+            --bg-primary: #0a192f;
+            --bg-secondary: #112240;
+            --bg-header: #112240;
+            --text-primary: #e6f1ff;
+            --text-secondary: #8892b0;
+            --text-on-dark: #e6f1ff;
+            --accent-primary: #64ffda; /* Green accent for dark mode */
+            --accent-secondary: #64ffda;
+            --border-color: #233554;
+            --shadow-color: rgba(2, 12, 27, 0.7);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--bg-primary);
+            color: var(--text-secondary);
+            line-height: 1.6;
+            font-size: 16px;
+            transition: background-color var(--transition-speed), color var(--transition-speed);
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+
+        /* --- TYPOGRAPHY & HEADERS --- */
+        h1, h2, h3 { color: var(--text-primary); margin-bottom: 1rem; }
+        header {
+            background-color: var(--bg-header);
+            padding: 1rem 2rem;
+            color: var(--text-on-dark);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 10px var(--shadow-color);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            transition: background-color var(--transition-speed);
+        }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        #app-title { font-size: 1.5rem; font-weight: bold; cursor: pointer; color: var(--text-on-dark); }
+        #back-button { display: none; background: none; border: none; color: var(--text-on-dark); font-size: 1.5rem; cursor: pointer; transition: transform var(--transition-speed), color var(--transition-speed); }
+        #back-button:hover { transform: translateX(-3px); color: var(--accent-secondary); }
+
+        /* --- THEME TOGGLE SWITCH --- */
+        .theme-switch-wrapper { display: flex; align-items: center; }
+        .theme-switch { display: inline-block; height: 24px; position: relative; width: 50px; }
+        .theme-switch input { display: none; }
+        .slider { background-color: #ccc; bottom: 0; cursor: pointer; left: 0; position: absolute; right: 0; top: 0; transition: .4s; border-radius: 34px; }
+        .slider:before { background-color: #fff; bottom: 4px; content: ""; height: 16px; left: 4px; position: absolute; transition: .4s; width: 16px; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--accent-primary); }
+        input:checked + .slider:before { transform: translateX(26px); }
+
+        /* --- PAGE & LAYOUT --- */
+        .page { display: none; animation: fadeIn 0.5s ease-in-out; }
+        .page.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- DASHBOARD STYLES --- */
+        .dashboard-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .summary-card { background-color: var(--bg-secondary); padding: 25px; border-radius: var(--border-radius); box-shadow: 0 2px 10px var(--shadow-color); border-left: 4px solid var(--accent-primary); transition: transform var(--transition-speed), box-shadow var(--transition-speed); }
+        .summary-card:hover { transform: translateY(-5px); box-shadow: 0 5px 15px var(--shadow-color); }
+        .summary-card h3 { color: var(--text-secondary); font-size: 1rem; margin-bottom: 10px; }
+        .summary-card .amount { font-size: 2rem; font-weight: bold; color: var(--text-primary); }
+
+        /* --- CLIENT LIST --- */
+        .client-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; background-color: var(--bg-secondary); padding: 15px; border-radius: var(--border-radius); border: 1px solid var(--border-color); }
+        #search-client { padding: 10px 15px; background-color: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: var(--border-radius); width: 100%; max-width: 300px; }
+        .client-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .client-card { background-color: var(--bg-secondary); color: var(--text-primary); padding: 20px; border-radius: var(--border-radius); border: 1px solid var(--border-color); cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
+        .client-card:hover { transform: scale(1.03); box-shadow: 0 4px 12px var(--shadow-color); border-color: var(--accent-primary); }
+        .client-card h3 { color: var(--text-primary); margin-bottom: 8px; }
+        .client-card p { color: var(--text-secondary); margin-bottom: 4px; }
+        .client-card .pending-amount { font-weight: bold; color: var(--danger-color); }
+        .client-card .pending-amount.zero { color: var(--success-color); }
+        .client-card-actions { margin-top: 15px; display: flex; gap: 10px; }
+        .empty-state { background-color: var(--bg-secondary); text-align: center; padding: 40px; border-radius: var(--border-radius); color: var(--text-secondary); border: 2px dashed var(--border-color); }
+
+        /* --- CLIENT PROFILE PAGE --- */
+        .profile-header { background-color: var(--bg-secondary); padding: 2rem; border-radius: var(--border-radius); margin-bottom: 2rem; border: 1px solid var(--border-color); }
+        .profile-header h2 { font-size: 2.5rem; }
+        .profile-details p { font-size: 1.1rem; color: var(--text-secondary); }
+        .profile-actions { margin-top: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap; }
+        .profile-total-pending { font-size: 1.5rem; color: var(--text-primary); margin-top: 1rem; }
+        .profile-total-pending span { color: var(--danger-color); font-weight: bold; }
+        .profile-total-pending span.zero { color: var(--success-color); }
+
+        /* --- BILL HISTORY --- */
+        .bill-history-item { display: flex; justify-content: space-between; align-items: center; background-color: var(--bg-secondary); color: var(--text-primary); padding: 15px; border-radius: var(--border-radius); margin-bottom: 10px; border: 1px solid var(--border-color); transition: background-color 0.2s; }
+        .bill-history-item:hover { background-color: var(--bg-primary); }
+        .bill-history-item .bill-info p { margin: 0; color: var(--text-secondary); }
+        .bill-history-item .bill-info .bill-date { font-weight: bold; color: var(--text-primary); }
+        .bill-history-item .bill-amount { text-align: right; }
+        .bill-history-item .bill-amount .total { font-weight: bold; font-size: 1.2rem; color: var(--text-primary); }
+        .bill-history-item .bill-amount .pending { color: var(--danger-color); }
+        .bill-history-item .bill-amount .pending.zero { color: var(--success-color); }
+        .bill-history-item .bill-actions button { margin-left: 10px; padding: 5px 8px; font-size: 0.8rem; }
+
+        /* --- BUTTONS --- */
+        .btn { background-color: transparent; color: var(--accent-primary); border: 1px solid var(--accent-primary); padding: 10px 20px; border-radius: var(--border-radius); cursor: pointer; font-size: 1rem; transition: all var(--transition-speed); position: relative; overflow: hidden; }
+        .btn:hover { background-color: var(--accent-primary); color: var(--text-on-dark); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .btn-primary { background-color: var(--accent-primary); color: var(--text-on-dark); font-weight: bold; }
+        .btn-primary:hover { opacity: 0.9; transform: translateY(-2px); }
+        .btn-danger { border-color: var(--danger-color); color: var(--danger-color); }
+        .btn-danger:hover { background-color: var(--danger-color); color: #fff; }
+        .btn-secondary { border-color: var(--text-secondary); color: var(--text-secondary); }
+        .btn-secondary:hover { background-color: var(--text-secondary); color: var(--bg-secondary); }
+
+        /* --- MODALS --- */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.6); animation: fadeIn 0.3s; }
+        .modal-content { background-color: var(--bg-secondary); margin: 5% auto; padding: 30px; border-radius: var(--border-radius); width: 90%; max-width: 600px; position: relative; animation: slideIn 0.3s; border: 1px solid var(--border-color); }
+        @keyframes slideIn { from { transform: translateY(-30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .modal-close { color: var(--text-secondary); position: absolute; top: 15px; right: 20px; font-size: 28px; font-weight: bold; cursor: pointer; }
+        .modal-close:hover { color: var(--text-primary); }
+
+        /* --- FORMS --- */
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; color: var(--text-secondary); font-weight: 500;}
+        .form-group input, .form-group textarea { width: 100%; padding: 12px; background-color: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--border-radius); color: var(--text-primary); font-size: 1rem; }
+        .form-actions { display: flex; justify-content: flex-end; gap: 10px; }
+
+        /* --- BILL FORM SPECIFIC --- */
+        #bill-items-container { margin-bottom: 20px; }
+        .bill-item-row { display: grid; grid-template-columns: 3fr 1fr 1fr 1fr auto; gap: 10px; align-items: center; margin-bottom: 10px; }
+        .bill-item-row input { padding: 8px; }
+        .bill-item-row .item-total { text-align: right; color: var(--text-primary); font-weight: bold; padding-right: 10px; }
+        .bill-totals { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border-color); }
+        .bill-totals .total-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 1.1rem; }
+        .bill-totals .total-row span:first-child { color: var(--text-secondary); }
+        .bill-totals .total-row span:last-child { color: var(--text-primary); font-weight: bold; }
+        .bill-totals .total-row input { max-width: 150px; text-align: right; }
+        .bill-totals .total-row#remaining-row span:last-child { color: var(--danger-color); }
+        .bill-totals .total-row#remaining-row span:last-child.zero { color: var(--success-color); }
+
+        /* --- BILL VIEW (for download/share) --- */
+        #bill-view-content { background-color: #fff; color: #000; padding: 40px; font-family: 'Arial', sans-serif; }
+        .bill-view-header { text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #0a192f; }
+        .bill-view-header h2 { background-color: #0a192f; color: white; padding: 10px 20px; display: inline-block; margin: 0; border-radius: var(--border-radius); }
+        .bill-meta, .bill-client-info { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .bill-items-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .bill-items-table th, .bill-items-table td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        .bill-items-table th { background-color: #0a192f; color: white; }
+        .bill-items-table td:nth-child(2), .bill-items-table td:nth-child(3), .bill-items-table td:nth-child(4) { text-align: right; }
+        .bill-view-totals { width: 50%; margin-left: auto; }
+        .bill-view-totals .total-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
+        .bill-view-totals .total-row.grand-total { font-weight: bold; font-size: 1.2rem; border-top: 2px solid #0a192f; margin-top: 10px; }
+
+        /* --- TOAST NOTIFICATIONS --- */
+        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 2000; }
+        .toast { background-color: var(--bg-secondary); color: var(--text-primary); padding: 15px 20px; border-radius: var(--border-radius); margin-bottom: 10px; box-shadow: 0 4px 10px var(--shadow-color); opacity: 0; transform: translateY(20px); transition: all 0.4s ease-in-out; border-left: 4px solid var(--success-color); }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast.error { border-left-color: var(--danger-color); }
+
+        /* --- RESPONSIVENESS --- */
+        @media (max-width: 768px) {
+            .container { padding: 10px; }
+            header { padding: 1rem; }
+            .client-controls { flex-direction: column; align-items: stretch; }
+            #search-client { max-width: 100%; }
+            .bill-item-row { grid-template-columns: 1fr; gap: 5px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+            .bill-item-row:last-child { border-bottom: none; }
+            .bill-item-row .item-total { text-align: left; }
+            .modal-content { width: 95%; margin-top: 10%; padding: 20px; }
+            .header-left { gap: 10px; }
+            #app-title { font-size: 1.2rem; }
+        }
+
+        /* --- BILL VIEW RESPONSIVENESS --- */
+        @media (max-width: 600px) {
+            #bill-view-content { padding: 15px; font-size: 14px; }
+            .bill-view-header h2 { font-size: 1.2rem; padding: 8px 12px; }
+            .bill-meta, .bill-client-info { flex-direction: column; gap: 5px; margin-bottom: 15px; }
+            .bill-view-totals { width: 100%; }
+
+            /* Responsive Table Magic */
+            .bill-items-table thead { display: none; }
+            .bill-items-table, .bill-items-table tbody, .bill-items-table tr, .bill-items-table td { display: block; width: 100%; }
+            .bill-items-table tr { margin-bottom: 15px; border: 1px solid #eee; padding: 10px; border-radius: var(--border-radius); }
+            .bill-items-table td {
+                text-align: right !important; /* Override inline styles */
+                position: relative;
+                padding-left: 50%;
+                border: none;
+                padding-bottom: 5px;
+                padding-top: 5px;
+            }
+            .bill-items-table td::before {
+                content: attr(data-label);
+                position: absolute;
+                left: 10px;
+                width: calc(50% - 20px);
+                font-weight: bold;
+                text-align: left;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app-container">
+        <header>
+            <div class="header-left">
+                <button id="back-button">&larr;</button>
+                <h1 id="app-title">CSS Khata/Bill</h1>
+            </div>
+            <div class="theme-switch-wrapper">
+                <label class="theme-switch" for="theme-toggle">
+                    <input type="checkbox" id="theme-toggle" />
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </header>
+
+        <main class="container">
+            <!-- ========== DASHBOARD PAGE ========== -->
+            <section id="dashboard-page" class="page active">
+                <div class="dashboard-summary">
+                    <div class="summary-card">
+                        <h3>Total Receivable (Odhar)</h3>
+                        <div class="amount" id="total-receivable">Rs 0.00</div>
+                    </div>
+                    <div class="summary-card">
+                        <h3>Total Clients</h3>
+                        <div class="amount" id="total-clients">0</div>
+                    </div>
+                </div>
+                <div class="client-controls">
+                    <input type="text" id="search-client" placeholder="Search clients by name...">
+                    <button id="add-client-btn" class="btn btn-primary">Add New Client</button>
+                </div>
+                <h2 style="margin-top: 2rem;">Clients</h2>
+                <div id="client-list" class="client-list"></div>
+            </section>
+
+            <!-- ========== CLIENT PROFILE PAGE ========== -->
+            <section id="client-profile-page" class="page">
+                <div class="profile-header">
+                    <h2 id="profile-client-name">Client Name</h2>
+                    <div class="profile-details">
+                        <p id="profile-client-phone">Phone: N/A</p>
+                        <p id="profile-client-address">Address: N/A</p>
+                    </div>
+                    <div class="profile-total-pending">Total Pending (Odhar): <span id="profile-total-pending-amount">Rs 0.00</span></div>
+                    <div class="profile-actions">
+                        <button id="profile-edit-client-btn" class="btn">Edit Client</button>
+                        <button id="profile-delete-client-btn" class="btn btn-danger">Delete Client</button>
+                        <button id="profile-generate-bill-btn" class="btn btn-primary">Generate New Bill</button>
+                    </div>
+                </div>
+                <h3>Bill History</h3>
+                <div id="bill-history-list"></div>
+            </section>
+        </main>
+    </div>
+
+    <!-- ========== MODALS ========== -->
+    <div id="client-form-modal" class="modal"><div class="modal-content"><span class="modal-close" data-modal="client-form-modal">&times;</span><h2 id="client-modal-title">Add New Client</h2><form id="client-form"><input type="hidden" id="client-id-input"><div class="form-group"><label for="client-name">Name</label><input type="text" id="client-name" required></div><div class="form-group"><label for="client-phone">Phone Number</label><input type="tel" id="client-phone"></div><div class="form-group"><label for="client-address">Address</label><textarea id="client-address" rows="3"></textarea></div><div class="form-actions"><button type="button" class="btn btn-secondary modal-close" data-modal="client-form-modal">Cancel</button><button type="submit" class="btn btn-primary">Save Client</button></div></form></div></div>
+    <div id="bill-form-modal" class="modal"><div class="modal-content"><span class="modal-close" data-modal="bill-form-modal">&times;</span><h2 id="bill-modal-title">Generate New Bill</h2><form id="bill-form"><input type="hidden" id="bill-id-input"><div id="bill-items-container"></div><button type="button" id="add-bill-item-btn" class="btn">+ Add Item</button><div class="bill-totals"><div class="total-row"><span>Subtotal</span><span id="bill-subtotal">Rs 0.00</span></div><div class="total-row"><label for="bill-paid-amount">Paid Amount</label><input type="number" id="bill-paid-amount" value="0" min="0" step="0.01"></div><div class="total-row" id="remaining-row"><span>Remaining (Odhar)</span><span id="bill-remaining">Rs 0.00</span></div></div><div class="form-actions" style="margin-top: 20px;"><button type="button" class="btn btn-secondary modal-close" data-modal="bill-form-modal">Cancel</button><button type="submit" class="btn btn-primary">Save Bill</button></div></form></div></div>
+    <div id="bill-view-modal" class="modal"><div class="modal-content" style="max-width: 800px;"><span class="modal-close" data-modal="bill-view-modal">&times;</span><div id="bill-view-content"></div><div class="form-actions" style="margin-top: 20px;"><button id="share-bill-btn" class="btn btn-primary">Share Bill</button></div></div></div>
+    <div id="confirm-delete-modal" class="modal"><div class="modal-content" style="max-width: 400px;"><h2 id="confirm-title">Are you sure?</h2><p id="confirm-message">This action cannot be undone.</p><div class="form-actions" style="margin-top: 20px;"><button id="cancel-delete-btn" class="btn btn-secondary">Cancel</button><button id="confirm-delete-btn" class="btn btn-danger">Delete</button></div></div></div>
+    <div id="toast-container"></div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+    
+        // =========================================================================
+        // STATE MANAGEMENT & DOM REFERENCES
+        // =========================================================================
+        let appData = { clients: [], activeClient: null };
+        const DB_NAME = 'cssKhataBillData';
+        const pages = document.querySelectorAll('.page');
+        const backButton = document.getElementById('back-button');
+        const appTitle = document.getElementById('app-title');
+        const themeToggle = document.getElementById('theme-toggle');
+        const clientFormModal = document.getElementById('client-form-modal');
+        const billFormModal = document.getElementById('bill-form-modal');
+        const billViewModal = document.getElementById('bill-view-modal');
+        const confirmDeleteModal = document.getElementById('confirm-delete-modal');
+        const clientForm = document.getElementById('client-form');
+        const billForm = document.getElementById('bill-form');
+    
+        // =========================================================================
+        // UTILITY & HELPER FUNCTIONS
+        // =========================================================================
+        const saveData = () => { localStorage.setItem(DB_NAME, JSON.stringify(appData)); };
+        const loadData = () => { const data = localStorage.getItem(DB_NAME); if (data) { appData = JSON.parse(data); } else { appData = { clients: [], activeClient: null }; saveData(); } };
+        const generateId = () => `id_${new Date().getTime()}_${Math.random().toString(36).substr(2, 9)}`;
+        const formatCurrency = (amount) => `Rs ${Number(amount).toFixed(2)}`;
+        const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        const showModal = (modal) => { modal.style.display = 'flex'; modal.style.alignItems = 'center'; modal.style.justifyContent = 'center'; };
+        const hideModal = (modal) => { modal.style.display = 'none'; };
+        const showToast = (message, type = 'success') => {
+            const toastContainer = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            toastContainer.appendChild(toast);
+            setTimeout(() => { toast.classList.add('show'); }, 10);
+            setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 500); }, 3000);
+        };
+        const calculateClientPending = (clientId) => {
+            const client = appData.clients.find(c => c.id === clientId);
+            return client ? client.bills.reduce((sum, bill) => sum + bill.remainingAmount, 0) : 0;
+        };
+    
+        // =========================================================================
+        // NAVIGATION & THEME
+        // =========================================================================
+        const navigateTo = (pageId) => {
+            pages.forEach(page => page.classList.toggle('active', page.id === pageId));
+            backButton.style.display = (pageId === 'dashboard-page') ? 'none' : 'inline-block';
+            appTitle.style.cursor = (pageId === 'dashboard-page') ? 'default' : 'pointer';
+        };
+        const applyTheme = (theme) => {
+            document.body.classList.toggle('dark-theme', theme === 'dark');
+            themeToggle.checked = (theme === 'dark');
+        };
+        themeToggle.addEventListener('change', () => {
+            const theme = themeToggle.checked ? 'dark' : 'light';
+            localStorage.setItem('theme', theme);
+            applyTheme(theme);
+        });
+
+        // =========================================================================
+        // RENDERING FUNCTIONS
+        // =========================================================================
+        const renderDashboard = () => {
+            const totalReceivable = appData.clients.reduce((total, client) => total + calculateClientPending(client.id), 0);
+            document.getElementById('total-receivable').textContent = formatCurrency(totalReceivable);
+            document.getElementById('total-clients').textContent = appData.clients.length;
+            renderClientList();
+        };
+    
+        const renderClientList = (searchTerm = '') => {
+            const clientListEl = document.getElementById('client-list');
+            clientListEl.innerHTML = '';
+            const filteredClients = appData.clients.filter(client => client.name.toLowerCase().includes(searchTerm.toLowerCase()));
+            if (filteredClients.length === 0) {
+                clientListEl.innerHTML = `<div class="empty-state">No clients found. Add one to get started!</div>`;
+                return;
+            }
+            filteredClients.sort((a,b) => a.name.localeCompare(b.name)).forEach(client => {
+                const totalPending = calculateClientPending(client.id);
+                const card = document.createElement('div');
+                card.className = 'client-card';
+                card.dataset.clientId = client.id;
+                card.innerHTML = `<h3>${client.name}</h3><p>Phone: ${client.phone || 'N/A'}</p><p>Pending: <span class="pending-amount ${totalPending === 0 ? 'zero' : ''}">${formatCurrency(totalPending)}</span></p><div class="client-card-actions"><button class="btn btn-secondary edit-client-btn" data-client-id="${client.id}">Edit</button><button class="btn btn-danger delete-client-btn" data-client-id="${client.id}">Delete</button></div>`;
+                clientListEl.appendChild(card);
+            });
+        };
+
+        const renderClientProfile = (clientId) => {
+            const client = appData.clients.find(c => c.id === clientId);
+            if (!client) { showToast('Client not found.', 'error'); navigateTo('dashboard-page'); return; }
+            appData.activeClient = client.id;
+            document.getElementById('profile-client-name').textContent = client.name;
+            document.getElementById('profile-client-phone').textContent = `Phone: ${client.phone || 'N/A'}`;
+            document.getElementById('profile-client-address').textContent = `Address: ${client.address || 'N/A'}`;
+            const totalPending = calculateClientPending(client.id);
+            const pendingEl = document.getElementById('profile-total-pending-amount');
+            pendingEl.textContent = formatCurrency(totalPending);
+            pendingEl.className = totalPending === 0 ? 'zero' : '';
+
+            const billHistoryListEl = document.getElementById('bill-history-list');
+            billHistoryListEl.innerHTML = '';
+            if (client.bills.length === 0) {
+                billHistoryListEl.innerHTML = `<div class="empty-state">No bills generated yet.</div>`;
+            } else {
+                client.bills.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(bill => {
+                    const billItem = document.createElement('div');
+                    billItem.className = 'bill-history-item';
+                    billItem.innerHTML = `<div class="bill-info"><p class="bill-date">Date: ${formatDate(bill.date)}</p><p>Bill ID: ...${bill.billId.substr(-6)}</p></div><div class="bill-amount"><p class="total">${formatCurrency(bill.subtotal)}</p><p class="pending ${bill.remainingAmount === 0 ? 'zero' : ''}">Pending: ${formatCurrency(bill.remainingAmount)}</p></div><div class="bill-actions"><button class="btn view-bill-btn" data-bill-id="${bill.billId}">View</button><button class="btn btn-secondary edit-bill-btn" data-bill-id="${bill.billId}">Edit</button><button class="btn btn-danger delete-bill-btn" data-bill-id="${bill.billId}">Delete</button></div>`;
+                    billHistoryListEl.appendChild(billItem);
+                });
+            }
+            navigateTo('client-profile-page');
+        };
+
+        const renderBillView = (clientId, billId) => {
+            const client = appData.clients.find(c => c.id === clientId);
+            const bill = client.bills.find(b => b.billId === billId);
+            if (!client || !bill) return;
+            // IMPORTANT: Add data-label attributes for responsive CSS
+            const itemsHtml = bill.items.map(item => `
+                <tr>
+                    <td data-label="Item">${item.name}</td>
+                    <td data-label="Price">${formatCurrency(item.price)}</td>
+                    <td data-label="Qty">${item.quantity}</td>
+                    <td data-label="Total">${formatCurrency(item.total)}</td>
+                </tr>`).join('');
+            
+            document.getElementById('bill-view-content').innerHTML = `
+                <div class="bill-view-header"><h2>Choice Seven Star</h2></div>
+                <div class="bill-meta"><div><strong>Bill No:</strong> ${bill.billId.substr(-6)}</div><div><strong>Date:</strong> ${formatDate(bill.date)}</div></div>
+                <div class="bill-client-info"><div><strong>Billed To:</strong><br>${client.name}<br>${client.phone || ''}<br>${client.address || ''}</div></div>
+                <table class="bill-items-table">
+                    <thead><tr><th>Item</th><th>Price</th><th>Qty</th><th>Total</th></tr></thead>
+                    <tbody>${itemsHtml}</tbody>
+                </table>
+                <div class="bill-view-totals">
+                    <div class="total-row"><span>Subtotal:</span> <span>${formatCurrency(bill.subtotal)}</span></div>
+                    <div class="total-row"><span>Paid Amount:</span> <span>${formatCurrency(bill.paidAmount)}</span></div>
+                    <div class="total-row grand-total"><span>Remaining:</span> <span>${formatCurrency(bill.remainingAmount)}</span></div>
+                </div>`;
+            showModal(billViewModal);
+        };
+    
+        // =========================================================================
+        // CLIENT CRUD LOGIC
+        // =========================================================================
+        const openClientForm = (clientId = null) => { /* ... (Same as before) ... */ };
+        clientForm.addEventListener('submit', (e) => { /* ... (Same as before) ... */ });
+        const confirmDelete = (type, id, secondaryId = null) => { /* ... (Same as before) ... */ };
+        const deleteClient = (clientId) => { /* ... (Same as before) ... */ };
+        // (Re-pasting for completeness, no changes needed in these functions)
+        const openClientFormFn = (clientId = null) => { clientForm.reset(); if (clientId) { const client = appData.clients.find(c => c.id === clientId); document.getElementById('client-modal-title').textContent = 'Edit Client'; document.getElementById('client-id-input').value = client.id; document.getElementById('client-name').value = client.name; document.getElementById('client-phone').value = client.phone; document.getElementById('client-address').value = client.address; } else { document.getElementById('client-modal-title').textContent = 'Add New Client'; document.getElementById('client-id-input').value = ''; } showModal(clientFormModal); };
+        clientForm.addEventListener('submit', (e) => { e.preventDefault(); const id = document.getElementById('client-id-input').value; const name = document.getElementById('client-name').value.trim(); if (!name) { showToast('Client name is required.', 'error'); return; } const clientData = { name, phone: document.getElementById('client-phone').value.trim(), address: document.getElementById('client-address').value.trim(), }; if (id) { const client = appData.clients.find(c => c.id === id); Object.assign(client, clientData); showToast('Client updated successfully!'); } else { appData.clients.push({ id: generateId(), ...clientData, bills: [] }); showToast('Client added successfully!'); } saveData(); renderDashboard(); if(appData.activeClient) renderClientProfile(appData.activeClient); hideModal(clientFormModal); });
+        const confirmDeleteFn = (type, id, secondaryId = null) => { const confirmBtn = document.getElementById('confirm-delete-btn'); if(type === 'client') { const client = appData.clients.find(c => c.id === id); document.getElementById('confirm-title').textContent = `Delete ${client.name}?`; document.getElementById('confirm-message').textContent = `This will delete the client and all their bills. This action cannot be undone.`; confirmBtn.onclick = () => { deleteClientFn(id); hideModal(confirmDeleteModal); }; } else if (type === 'bill') { document.getElementById('confirm-title').textContent = `Delete Bill?`; document.getElementById('confirm-message').textContent = `This will permanently delete this bill.`; confirmBtn.onclick = () => { deleteBillFn(secondaryId, id); hideModal(confirmDeleteModal); }; } showModal(confirmDeleteModal); };
+        const deleteClientFn = (clientId) => { appData.clients = appData.clients.filter(c => c.id !== clientId); saveData(); showToast('Client deleted successfully.', 'success'); navigateTo('dashboard-page'); renderDashboard(); };
+
+        // =========================================================================
+        // BILL CRUD & FORM LOGIC
+        // =========================================================================
+        const updateBillTotals = () => { /* ... (Same as before) ... */ };
+        const addBillItemRow = (item = { name: '', price: '', quantity: 1 }) => { /* ... (Same as before) ... */ };
+        const openBillForm = (clientId, billId = null) => { /* ... (Same as before) ... */ };
+        billForm.addEventListener('submit', (e) => { /* ... (Same as before) ... */ });
+        const deleteBill = (clientId, billId) => { /* ... (Same as before) ... */ };
+        // (Re-pasting for completeness, no changes needed in these functions)
+        const updateBillTotalsFn = () => { let subtotal = 0; document.querySelectorAll('.bill-item-row').forEach(row => { const price = parseFloat(row.querySelector('.item-price').value) || 0; const qty = parseInt(row.querySelector('.item-qty').value) || 0; const total = price * qty; row.querySelector('.item-total').textContent = formatCurrency(total); subtotal += total; }); document.getElementById('bill-subtotal').textContent = formatCurrency(subtotal); const paidAmount = parseFloat(document.getElementById('bill-paid-amount').value) || 0; const remaining = Math.max(0, subtotal - paidAmount); const remainingEl = document.getElementById('bill-remaining'); remainingEl.textContent = formatCurrency(remaining); remainingEl.classList.toggle('zero', remaining === 0); };
+        const addBillItemRowFn = (item = { name: '', price: '', quantity: 1 }) => { const container = document.getElementById('bill-items-container'); const row = document.createElement('div'); row.className = 'bill-item-row'; row.innerHTML = `<input type="text" class="item-name" placeholder="Product Name" value="${item.name}" required><input type="number" class="item-price" placeholder="Price" value="${item.price}" min="0" step="0.01"><input type="number" class="item-qty" placeholder="Qty" value="${item.quantity}" min="1"><span class="item-total">${formatCurrency(item.price * item.quantity)}</span><button type="button" class="btn btn-danger remove-item-btn">&times;</button>`; container.appendChild(row); row.querySelector('.remove-item-btn').addEventListener('click', () => { row.remove(); updateBillTotalsFn(); }); row.querySelectorAll('.item-price, .item-qty').forEach(el => el.addEventListener('input', updateBillTotalsFn)); };
+        const openBillFormFn = (clientId, billId = null) => { billForm.reset(); document.getElementById('bill-items-container').innerHTML = ''; if (billId) { document.getElementById('bill-modal-title').textContent = "Edit Bill"; document.getElementById('bill-id-input').value = billId; const client = appData.clients.find(c => c.id === clientId); const bill = client.bills.find(b => b.billId === billId); bill.items.forEach(item => addBillItemRowFn(item)); document.getElementById('bill-paid-amount').value = bill.paidAmount; } else { document.getElementById('bill-modal-title').textContent = "Generate New Bill"; document.getElementById('bill-id-input').value = ''; addBillItemRowFn(); } updateBillTotalsFn(); showModal(billFormModal); };
+        billForm.addEventListener('submit', (e) => { e.preventDefault(); const billId = document.getElementById('bill-id-input').value; const client = appData.clients.find(c => c.id === appData.activeClient); if (!client) return; let subtotal = 0; const items = Array.from(document.querySelectorAll('.bill-item-row')).map(row => { const name = row.querySelector('.item-name').value.trim(); const price = parseFloat(row.querySelector('.item-price').value) || 0; const quantity = parseInt(row.querySelector('.item-qty').value) || 0; const total = price * quantity; subtotal += total; return { name, price, quantity, total }; }).filter(item => item.name && item.price > 0 && item.quantity > 0); if (items.length === 0) { showToast('Please add at least one valid item.', 'error'); return; } const paidAmount = parseFloat(document.getElementById('bill-paid-amount').value) || 0; const billData = { items, subtotal, paidAmount, remainingAmount: Math.max(0, subtotal - paidAmount) }; if (billId) { const bill = client.bills.find(b => b.billId === billId); Object.assign(bill, billData); showToast('Bill updated successfully!'); } else { client.bills.push({ billId: generateId(), date: new Date().toISOString(), ...billData }); showToast('Bill generated successfully!'); } saveData(); renderClientProfile(client.id); renderDashboard(); hideModal(billFormModal); });
+        const deleteBillFn = (clientId, billId) => { const client = appData.clients.find(c => c.id === clientId); if (client) { client.bills = client.bills.filter(b => b.billId !== billId); saveData(); showToast('Bill deleted successfully.', 'success'); renderClientProfile(clientId); renderDashboard(); } };
+
+        // =========================================================================
+        // EVENT LISTENERS
+        // =========================================================================
+        document.getElementById('add-client-btn').addEventListener('click', () => openClientFormFn());
+        document.getElementById('search-client').addEventListener('input', (e) => renderClientList(e.target.value));
+        backButton.addEventListener('click', () => navigateTo('dashboard-page'));
+        appTitle.addEventListener('click', () => { if (document.getElementById('client-profile-page').classList.contains('active')) { navigateTo('dashboard-page'); } });
+
+        document.body.addEventListener('click', (e) => {
+            const target = e.target;
+            // Simplified event delegation
+            const actionMap = {
+                'client-card': () => !target.closest('.client-card-actions') && renderClientProfile(target.closest('.client-card').dataset.clientId),
+                'edit-client-btn': () => openClientFormFn(target.dataset.clientId),
+                'delete-client-btn': () => confirmDeleteFn('client', target.dataset.clientId),
+                'profile-edit-client-btn': () => openClientFormFn(appData.activeClient),
+                'profile-delete-client-btn': () => confirmDeleteFn('client', appData.activeClient),
+                'profile-generate-bill-btn': () => openBillFormFn(appData.activeClient),
+                'view-bill-btn': () => renderBillView(appData.activeClient, target.dataset.billId),
+                'edit-bill-btn': () => openBillFormFn(appData.activeClient, target.dataset.billId),
+                'delete-bill-btn': () => confirmDeleteFn('bill', target.dataset.billId, appData.activeClient),
+                'add-bill-item-btn': addBillItemRowFn,
+                'modal-close': () => hideModal(document.getElementById(target.dataset.modal)),
+                'cancel-delete-btn': () => hideModal(confirmDeleteModal),
+                'share-bill-btn': async () => {
+                    const billContent = document.getElementById('bill-view-content');
+                    const client = appData.clients.find(c => c.id === appData.activeClient);
+                    const fileName = `bill-${client.name.replace(/\s/g, '_')}-${new Date().toISOString().slice(0,10)}.png`;
+                    showToast('Preparing bill...', 'success');
+
+                    const canvas = await html2canvas(billContent, { scale: 2 }); // Increase scale for better quality
+                    
+                    // Web Share API (for mobile)
+                    if (navigator.share && navigator.canShare) {
+                        canvas.toBlob(async (blob) => {
+                            const file = new File([blob], fileName, { type: 'image/png' });
+                            const shareData = {
+                                files: [file],
+                                title: 'Client Bill',
+                                text: `Here is the bill for ${client.name}.`
+                            };
+                            if (navigator.canShare(shareData)) {
+                                try {
+                                    await navigator.share(shareData);
+                                    showToast('Bill shared successfully!');
+                                } catch (err) {
+                                    if (err.name !== 'AbortError') {
+                                        showToast(`Error: ${err.message}`, 'error');
+                                    }
+                                }
+                            }
+                        }, 'image/png');
+                    } else {
+                        // Fallback to download (for desktop)
+                        showToast('Share not supported, downloading instead.', 'success');
+                        const link = document.createElement('a');
+                        link.download = fileName;
+                        link.href = canvas.toDataURL('image/png');
+                        link.click();
+                    }
+                }
+            };
+            const targetClass = target.classList[1] || target.id;
+            const action = actionMap[targetClass] || (target.closest('.client-card') && actionMap['client-card']);
+            if (action) action();
+        });
+
+        document.getElementById('bill-paid-amount').addEventListener('input', updateBillTotalsFn);
+        window.addEventListener('click', (e) => { if(e.target.classList.contains('modal')) { hideModal(e.target); } });
+    
+        // =========================================================================
+        // INITIALIZATION
+        // =========================================================================
+        const init = () => {
+            loadData();
+            applyTheme(localStorage.getItem('theme') || 'light');
+            renderDashboard();
+            navigateTo('dashboard-page');
+        };
+        init();
+    });
+    </script>
+</body>
+</html>
